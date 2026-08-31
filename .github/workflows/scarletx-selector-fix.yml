@@ -1,0 +1,50 @@
+name: ScarletX Selector Fix
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out ScarletX PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: scarletx-community-app
+          fetch-depth: 0
+
+      - name: Update container selectors
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("ix-dev/community/scarletx/questions.yaml")
+          text = path.read_text(encoding="utf-8")
+          old = """                                      - value: scarletx
+                                        description: scarletx"""
+          new = """                                      - value: scarletx-backend
+                                        description: scarletx-backend
+                                      - value: scarletx-web
+                                        description: scarletx-web"""
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f"Expected 2 legacy ScarletX selectors, found {count}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ix-dev/community/scarletx/questions.yaml
+          git commit -m "Update ScarletX container selectors"
+          git push origin HEAD:scarletx-community-app
+
+      - name: Remove one-shot helper from fork master
+        run: |
+          git fetch origin master
+          git checkout -B master origin/master
+          git rm .github/workflows/scarletx-selector-fix.yml
+          git commit -m "Remove one-shot ScarletX selector fix"
+          git push origin HEAD:master
